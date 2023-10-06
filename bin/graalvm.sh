@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-
-echo graalvm-$1 > ../output/type
-../output/graalvm-$1
+S=$(cd `dirname $0` && pwd )
+echo graalvm-$1 > $S/../output/type
+$S/../output/graalvm-$1

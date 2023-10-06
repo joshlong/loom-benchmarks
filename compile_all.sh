@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-mkdir -p output
+rm -rf output && mkdir -p output
 
 export PROP="spring.threads.virtual.enabled"
 R=$(cd . && pwd)

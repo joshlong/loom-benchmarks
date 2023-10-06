@@ -41,7 +41,7 @@ class CustomerHttpController {
 
     @GetMapping("/customers")
     Collection<Customer> customers() throws Exception {
-        Thread.sleep(100);
+     ///   Thread.sleep(100);
         return this.repository.customers();
     }
 
@@ -54,9 +54,9 @@ class CustomerHttpController {
 @Repository
 class CustomerRepository {
 
-    final JdbcClient jdbc;
+    private final JdbcClient jdbc;
 
-    final RowMapper<Customer> customerRowMapper =
+    private final RowMapper<Customer> customerRowMapper =
             (rs, i) -> new Customer(rs.getInt("id"), rs.getString("name"));
 
     CustomerRepository(JdbcClient jdbc) {
@@ -65,13 +65,14 @@ class CustomerRepository {
 
     Collection<Customer> customers() {
         return this.jdbc
-                .sql("select * from customer ")
+                .sql(" select * from customer ")
                 .query(this.customerRowMapper)
                 .list();
     }
 
     Customer customerById(Integer id) {
-        return this.jdbc.sql("select * from customer where id =? ")
+        return this.jdbc
+                .sql(" select * from customer where id =? ")
                 .param(id)
                 .query(this.customerRowMapper)
                 .single();
