@@ -6,15 +6,19 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.NativeDetector;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Controller;
-import org.springframework.stereotype.Repository;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.http.MediaType;
+import org.springframework.util.Assert;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.RouterFunctions;
+import org.springframework.web.servlet.function.ServerResponse;
 
-import java.util.Collection;
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @SpringBootApplication
 public class LoomApplication {
@@ -25,59 +29,46 @@ public class LoomApplication {
 
     @Bean
     ApplicationRunner applicationRunner(@Value("${spring.threads.virtual.enabled:false}") boolean enabled) {
-        return args -> System.out.println("native? " + NativeDetector.inNativeImage() + " virtual threads? " + enabled);
-    }
-}
-
-@Controller
-@ResponseBody
-class CustomerHttpController {
-
-    private final CustomerRepository repository;
-
-    CustomerHttpController(CustomerRepository repository) {
-        this.repository = repository;
+        return args -> System.out.println("native? " +
+                                          NativeDetector.inNativeImage() + " virtual threads? " + enabled);
     }
 
-    @GetMapping("/customers")
-    Collection<Customer> customers() throws Exception {
-     ///   Thread.sleep(100);
-        return this.repository.customers();
+    @Bean
+    RestClient restClient(@Value("${service.url}") URI uri, RestClient.Builder builder) {
+        return builder
+                .baseUrl(uri.toString())
+                .build();
     }
 
-    @GetMapping("/customers/{id}")
-    Customer byId(@PathVariable Integer id) {
-        return this.repository.customerById(id);
-    }
-}
+    private final Map<String, Set<String>> threads = new ConcurrentHashMap<>();
 
-@Repository
-class CustomerRepository {
 
-    private final JdbcClient jdbc;
-
-    private final RowMapper<Customer> customerRowMapper =
-            (rs, i) -> new Customer(rs.getInt("id"), rs.getString("name"));
-
-    CustomerRepository(JdbcClient jdbc) {
-        this.jdbc = jdbc;
+    private void note() {
+        var currentThread = Thread.currentThread();
+        var key = Long.toString(currentThread.threadId());
+        this.threads.computeIfAbsent(key, s -> new HashSet<>()).add(currentThread.toString());
     }
 
-    Collection<Customer> customers() {
-        return this.jdbc
-                .sql(" select * from customer ")
-                .query(this.customerRowMapper)
-                .list();
+    @Bean
+    RouterFunction<ServerResponse> httpEndpoints(RestClient rc) {
+        return RouterFunctions
+                .route()
+                .GET("/threads", r -> ServerResponse.ok().body(this.threads))
+                .GET("/block", r -> {
+                    var delay = Integer.parseInt(r.param("delay").orElse("1"));
+                    note();
+                    var launchRequest = rc
+                            .get()
+                            .uri("/delay/" + delay)
+                            .retrieve()
+                            .toEntity(String.class);
+                    note();
+                    Assert.state(launchRequest.getStatusCode().is2xxSuccessful(), "the request must be successful");
+                    return ServerResponse
+                            .ok()
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(Objects.requireNonNull(launchRequest.getBody()));
+                })
+                .build();
     }
-
-    Customer customerById(Integer id) {
-        return this.jdbc
-                .sql(" select * from customer where id =? ")
-                .param(id)
-                .query(this.customerRowMapper)
-                .single();
-    }
-}
-
-record Customer(Integer id, String name) {
 }
