@@ -25,7 +25,7 @@ public class LoomApplication {
 
     @Bean
     ApplicationRunner applicationRunner(@Value("${spring.threads.virtual.enabled:false}") boolean enabled) {
-        return args -> System.out.println( "native? "+ NativeDetector.inNativeImage() +" virtual threads? " + enabled);
+        return args -> System.out.println("native? " + NativeDetector.inNativeImage() + " virtual threads? " + enabled);
     }
 }
 
@@ -33,15 +33,15 @@ public class LoomApplication {
 @ResponseBody
 class CustomerHttpController {
 
-
-    final CustomerRepository repository;
+    private final CustomerRepository repository;
 
     CustomerHttpController(CustomerRepository repository) {
         this.repository = repository;
     }
 
     @GetMapping("/customers")
-    Collection<Customer> customers() {
+    Collection<Customer> customers() throws Exception {
+        Thread.sleep(100);
         return this.repository.customers();
     }
 

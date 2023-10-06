@@ -2,24 +2,36 @@
 
 mkdir -p output
 
-export SPRING_THREADS_VIRTUAL_ENABLED=true
+export PROP="spring.threads.virtual.enabled"
+R=$(cd . && pwd)
 
-## JRE
-rm -rf target
-./mvnw -DskipTests package
-mv target/loom*jar output/jre.jar
+function virtual_threads() {
+  R_F=$R/src/main/resources
+  cat $R_F/application.properties | grep -v $PROP  >> $R_F/tmp.properties
+  echo $PROP=$1 >> $R_F/tmp.properties
+  mv $R_F/tmp.properties $R_F/application.properties
+  cat $R_F/application.properties
+}
 
+function jre(){
+  echo "doing JRE compilation with virtual threads: $1"
+  virtual_threads $1
+  rm -rf target
+  ./mvnw -DskipTests package
+  mv target/loom*jar output/jre-${1}.jar
+}
 
-## GRAALVM VIRTUAL
-rm -rf target
-./mvnw -DskipTests -Pnative native:compile
-mv target/loom output/graalvm-virtual
+function graalvm(){
+  echo "doing GraalVM compilation with virtual threads: $1"
+  virtual_threads $1
+  rm -rf target
+  ./mvnw -DskipTests -Pnative native:compile
+  mv target/loom output/graalvm-$1
+}
 
-## GRAALVM TRADITIONAL
-export SPRING_THREADS_VIRTUAL_ENABLED=false
-
-rm -rf target
-./mvnw -DskipTests -Pnative native:compile
-mv target/loom output/graalvm-traditional
+for i in true false; do
+  jre $i
+  graalvm $i
+done
 
 
