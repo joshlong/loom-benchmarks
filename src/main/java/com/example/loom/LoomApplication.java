@@ -27,10 +27,11 @@ public class LoomApplication {
         SpringApplication.run(LoomApplication.class, args);
     }
 
+    private final Map<String, Set<String>> threads = new ConcurrentHashMap<>();
+
     @Bean
     ApplicationRunner applicationRunner(@Value("${spring.threads.virtual.enabled:false}") boolean enabled) {
-        return args -> System.out.println("native? " +
-                                          NativeDetector.inNativeImage() + " virtual threads? " + enabled);
+        return args -> System.out.println((NativeDetector.inNativeImage() ? "graalvm" : "jre") + "-" + enabled);
     }
 
     @Bean
@@ -39,9 +40,6 @@ public class LoomApplication {
                 .baseUrl(uri.toString())
                 .build();
     }
-
-    private final Map<String, Set<String>> threads = new ConcurrentHashMap<>();
-
 
     private void note() {
         var currentThread = Thread.currentThread();

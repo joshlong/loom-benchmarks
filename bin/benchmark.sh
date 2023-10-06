@@ -5,6 +5,7 @@ cd `dirname $0`
 START=`pwd`
 
 echo "The benchmark start directory is ${START} "
+rm -rf output/*-logs
 
 function reset(){
   pkill java
